@@ -22,22 +22,37 @@ namespace arrow {
 
             template<class Fn,
                     typename  = typename std::enable_if<std::is_convertible<
-                         decltype(std::declval<Fn &&>()(std::declval<A>()...)), R>::value>::type>
+                            decltype(std::declval<Fn &&>()(std::declval<A>()...)), R>::value>::type>
             FnOnce(Fn fn) :
                     impl_(new FnImpl<Fn>(std::move(fn))) {
 
             }
+
+            explicit operator bool() const {
+                return impl_ != nullptr;
+            }
+
+            R operator()(A...a) &&{
+                auto bye = std::move(impl_);
+                return bye->Invoke(std::forward<A &&>(a)...);
+            }
+
         private: //Fields
             struct Impl {
-                        virtual ~Impl() = default;
-                        virtual R Invoke(A&&... a) = 0;
-                    };
+                virtual ~Impl() = default;
 
-            template<class Fn> struct FnImpl {
-                explicit FnImpl(Fn fn) :fn_(std::move(fn)) {}
-                R invoke(A&&... a) override { return std::move(fn_)(std::forward<A&&>(a)...); }
+                virtual R Invoke(A &&... a) = 0;
+            };
+
+            template<class Fn>
+            struct FnImpl {
+                explicit FnImpl(Fn fn) : fn_(std::move(fn)) {}
+
+                R invoke(A &&... a) override { return std::move(fn_)(std::forward<A &&>(a)...); }
+
                 Fn fn_;
             };
+
             std::unique_ptr<Impl> impl_;
         };
 
